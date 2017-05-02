@@ -1,8 +1,8 @@
 
 #include "app.h"
 #include"I2C2_Commands.h"
-#include <stdio.h>
-#include <xc.h>
+
+
 #include<math.h>
 
 
@@ -20,7 +20,11 @@
 #define reg_Contr 0x12
 #define reg_OUT_TEMP_L 0x20
 
+#define maxTime 4
+
 int startTime = 0;
+unsigned char data[14];
+
 /* Application Data
 
   Summary:
@@ -316,6 +320,8 @@ void APP_Tasks(void) {
     static int8_t vector = 0;
     static uint8_t movement_length = 0;
     int8_t dir_table[] = {-4, -4, -4, 0, 4, 4, 4, 0};
+    
+    static char ComI = 0;
 
     /* Check the application's current state. */
     switch (appData.state) {
@@ -351,7 +357,36 @@ void APP_Tasks(void) {
             break;
 
         case APP_STATE_MOUSE_EMULATE:
-            
+
+            // Read the accelerometer
+            //unsigned char data[14];
+            I2C_read_multiple(IMU_Address, reg_OUT_TEMP_L, data, 14);
+            // Shift Data into variables to get raw data
+            short temperature = (data[1] << 8) | data[0];
+            short gyroX = (data[3] << 8) | data[2];
+            short gyroY = (data[5] << 8) | data[4];
+            short gyroZ = (data[7] << 8) | data[6];
+            short accelX = (data[9] << 8) | data[8];
+            short accelY = (data[11] << 8) | data[10];
+            short accelZ = (data[13] << 8) | data[12];
+
+            ComI++;
+            if (ComI >= maxTime)
+            {
+                ComI = 0;
+                appData.mouseButton[0] = MOUSE_BUTTON_STATE_RELEASED;
+                appData.mouseButton[1] = MOUSE_BUTTON_STATE_RELEASED;
+                appData.xCoordinate = accelX/256;
+                appData.yCoordinate = accelY/256;
+            }
+            else
+            {
+                appData.mouseButton[0] = MOUSE_BUTTON_STATE_RELEASED;
+                appData.mouseButton[1] = MOUSE_BUTTON_STATE_RELEASED;
+                appData.xCoordinate = 0;
+                appData.yCoordinate = 0;
+            }
+            /*
             // every 50th loop, or 20 times per second
             if (movement_length > 50) {
                 appData.mouseButton[0] = MOUSE_BUTTON_STATE_RELEASED;
@@ -360,7 +395,7 @@ void APP_Tasks(void) {
                 appData.yCoordinate = (int8_t) dir_table[(vector + 2) & 0x07];
                 vector++;
                 movement_length = 0;
-            }
+            }*/
 
             if (!appData.isMouseReportSendBusy) {
                 /* This means we can send the mouse report. The
