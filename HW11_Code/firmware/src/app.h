@@ -46,6 +46,7 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 #ifndef _APP_H
 #define _APP_H
 
+
 // *****************************************************************************
 // *****************************************************************************
 // Section: Included Files
@@ -58,14 +59,7 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 #include <stdlib.h>
 #include "system_config.h"
 #include "system_definitions.h"
-
-// DOM-IGNORE-BEGIN
-#ifdef __cplusplus  // Provide C++ Compatibility
-
-extern "C" {
-
-#endif
-// DOM-IGNORE-END 
+#include "mouse.h"
 
 // *****************************************************************************
 // *****************************************************************************
@@ -74,7 +68,7 @@ extern "C" {
 // *****************************************************************************
 
 // *****************************************************************************
-/* Application states
+/* Application States
 
   Summary:
     Application states enumeration
@@ -88,9 +82,15 @@ typedef enum
 {
 	/* Application's state machine's initial state. */
 	APP_STATE_INIT=0,
-	APP_STATE_SERVICE_TASKS,
 
-	/* TODO: Define states used by the application state machine. */
+	/* Application waits for configuration in this state */
+    APP_STATE_WAIT_FOR_CONFIGURATION,
+
+    /* Application runs mouse emulation in this state */
+    APP_STATE_MOUSE_EMULATE,
+
+    /* Application error state */
+    APP_STATE_ERROR
 
 } APP_STATES;
 
@@ -113,7 +113,44 @@ typedef struct
     /* The application's current state */
     APP_STATES state;
 
-    /* TODO: Define any additional data used by the application. */
+    /* device layer handle returned by device layer open function */
+    USB_DEVICE_HANDLE  deviceHandle;
+
+    /* Is device configured */
+    bool isConfigured;
+
+    /* Mouse x coordinate*/
+    MOUSE_COORDINATE xCoordinate;
+
+    /* Mouse y coordinate*/
+    MOUSE_COORDINATE yCoordinate;
+
+    /* Mouse buttons*/
+    MOUSE_BUTTON_STATE mouseButton[MOUSE_BUTTON_NUMBERS];
+
+    /* HID instance associated with this app object*/
+    SYS_MODULE_INDEX hidInstance;
+
+    /* Transfer handle */
+    USB_DEVICE_HID_TRANSFER_HANDLE reportTransferHandle;
+
+    /* Device Layer System Module Object */
+    SYS_MODULE_OBJ deviceLayerObject;
+
+    /* USB HID active Protocol */
+    uint8_t activeProtocol;
+
+    /* USB HID current Idle */
+    uint8_t idleRate;
+
+    /* Tracks the progress of the report send */
+    bool isMouseReportSendBusy;
+
+    /* Flag determines SOF event has occured */
+    bool sofEventHasOccurred;
+
+    /* SET IDLE timer */
+    uint16_t setIdleTimer;
 
 } APP_DATA;
 
@@ -125,6 +162,7 @@ typedef struct
 // *****************************************************************************
 /* These routines are called by drivers when certain events occur.
 */
+
 	
 // *****************************************************************************
 // *****************************************************************************
@@ -196,17 +234,10 @@ void APP_Initialize ( void );
     This routine must be called from SYS_Tasks() routine.
  */
 
-void APP_Tasks( void );
+void APP_Tasks ( void );
 
 
 #endif /* _APP_H */
-
-//DOM-IGNORE-BEGIN
-#ifdef __cplusplus
-}
-#endif
-//DOM-IGNORE-END
-
 /*******************************************************************************
  End of File
  */
